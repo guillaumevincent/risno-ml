@@ -9,7 +9,8 @@ class Property(scrapy.Item):
     type = scrapy.Field()
     rooms = scrapy.Field()
     city = scrapy.Field()
-    file_urls = scrapy.Field()
+    image_urls = scrapy.Field()
+    images = scrapy.Field()
 
 
 class LeboncoinSpider(scrapy.Spider):
@@ -38,7 +39,9 @@ class LeboncoinSpider(scrapy.Spider):
     def extract_meta_from_property(self, response):
         property = response.meta['property']
         properties = response.css('section.properties h2')
-        property['price'] = int(properties.css('.item_price').xpath('./@content').extract_first())
+        price = properties.css('.item_price').xpath('./@content').extract_first()
+        if price:
+            property['price'] = int(price)
         surface = properties.xpath('.//span[.="Surface"]/following-sibling::span/text()').extract_first()
         if surface:
             property['surface'] = int(surface.lower().replace("m", "").replace(" ", "").strip())
@@ -47,4 +50,8 @@ class LeboncoinSpider(scrapy.Spider):
             property['rooms'] = int(rooms.extract_first())
         property['type'] = properties.xpath('.//span[.="Type de bien"]/following-sibling::span/text()').extract_first()
         property['city'] = properties.xpath('.//span[@itemprop="address"]/text()').extract_first().strip()
+        images_script = response.css('.item_photo').xpath('./following-sibling::script/text()')
+        if images_script:
+            images = images_script[0].re('images\[\d\]\s*=\s*"(.*?)"')
+            property['image_urls'] = ['http:%s' % i for i in images]
         yield property
